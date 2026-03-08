@@ -34,12 +34,36 @@ interface CompanyWithHistory {
   history: YearRecord[];
 }
 
-const SUB_SCORE_KEYS = [
+const SUB_SCORE_KEYS_SMALL = [
   { key: "scoreRemunerations" as const, label: "Rémunération", max: 40 },
   { key: "scoreAugmentations" as const, label: "Augmentations", max: 35 },
   { key: "scoreCongesMaternite" as const, label: "Congé maternité", max: 15 },
   { key: "scoreHautesRemunerations" as const, label: "Hautes rém.", max: 10 },
 ];
+
+const SUB_SCORE_KEYS_LARGE = [
+  { key: "scoreRemunerations" as const, label: "Rémunération", max: 40 },
+  { key: "scoreAugmentationsHP" as const, label: "Augmentations HP", max: 20 },
+  { key: "scorePromotions" as const, label: "Promotions", max: 15 },
+  { key: "scoreCongesMaternite" as const, label: "Congé maternité", max: 15 },
+  { key: "scoreHautesRemunerations" as const, label: "Hautes rém.", max: 10 },
+];
+
+function getSubScoreKeys(items: CompanyWithHistory[]) {
+  const hasSmall = items.some((i) => i.company.size === "50 à 250");
+  const hasLarge = items.some((i) => i.company.size !== "50 à 250");
+  if (hasSmall && !hasLarge) return SUB_SCORE_KEYS_SMALL;
+  if (hasLarge && !hasSmall) return SUB_SCORE_KEYS_LARGE;
+  // Mixed: show all indicators
+  return [
+    { key: "scoreRemunerations" as const, label: "Rémunération", max: 40 },
+    { key: "scoreAugmentations" as const, label: "Augmentations", max: 35 },
+    { key: "scoreAugmentationsHP" as const, label: "Augmentations HP", max: 20 },
+    { key: "scorePromotions" as const, label: "Promotions", max: 15 },
+    { key: "scoreCongesMaternite" as const, label: "Congé maternité", max: 15 },
+    { key: "scoreHautesRemunerations" as const, label: "Hautes rém.", max: 10 },
+  ];
+}
 
 export default function ComparerPage() {
   return (
@@ -143,14 +167,15 @@ function CompanyCompare({ t, chartColors }: { t: ReturnType<typeof import("@/com
 
   const removeCompany = (siren: string) => setSelected((prev) => prev.filter((s) => s.company.siren !== siren));
 
-  const radarData = selected.length > 0 ? buildRadarData(selected) : [];
+  const subScoreKeys = useMemo(() => getSubScoreKeys(selected), [selected]);
+  const radarData = selected.length > 0 ? buildRadarData(selected, subScoreKeys) : [];
   const barData = selected.map((s, i) => ({
     name: s.company.name.length > 20 ? s.company.name.substring(0, 20) + "…" : s.company.name,
     score: s.company.latestScore, fill: COLORS[i % COLORS.length],
   }));
 
   // Sub-score breakdown bar data
-  const subScoreBarData = SUB_SCORE_KEYS.map(({ key, label, max }) => {
+  const subScoreBarData = subScoreKeys.map(({ key, label, max }) => {
     const point: Record<string, string | number | null> = { indicator: label };
     for (const item of selected) {
       const latest = item.history.find((h) => h.year === item.company.latestYear);
@@ -264,7 +289,7 @@ function CompanyCompare({ t, chartColors }: { t: ReturnType<typeof import("@/com
                   <tr>
                     <th className="px-3 py-2 text-left font-semibold">{t.comparer.companiesMode}</th>
                     <th className="px-3 py-2 text-right font-semibold">{t.common.score}</th>
-                    {SUB_SCORE_KEYS.map(({ label }) => (
+                    {subScoreKeys.map(({ label }) => (
                       <th key={label} className="px-3 py-2 text-right font-semibold text-xs">{label}</th>
                     ))}
                     <th className="px-3 py-2 text-right font-semibold"></th>
@@ -285,7 +310,7 @@ function CompanyCompare({ t, chartColors }: { t: ReturnType<typeof import("@/com
                         <td className={cn("px-3 py-2 text-right font-bold", scoreColor(s.company.latestScore))}>
                           {s.company.latestScore ?? t.common.NC}
                         </td>
-                        {SUB_SCORE_KEYS.map(({ key, max }) => {
+                        {subScoreKeys.map(({ key, max }) => {
                           const val = latest?.[key];
                           return (
                             <td key={key} className="px-3 py-2 text-right text-muted-foreground">
@@ -482,8 +507,8 @@ function SectorCompare({ t, chartColors }: { t: ReturnType<typeof import("@/comp
 
 /* ========== Helpers ========== */
 
-function buildRadarData(items: CompanyWithHistory[]) {
-  return SUB_SCORE_KEYS.map(({ key, label, max }) => {
+function buildRadarData(items: CompanyWithHistory[], subScoreKeys: ReturnType<typeof getSubScoreKeys>) {
+  return subScoreKeys.map(({ key, label, max }) => {
     const point: Record<string, string | number | null> = { indicator: label };
     for (const item of items) {
       const latest = item.history.find((h) => h.year === item.company.latestYear);

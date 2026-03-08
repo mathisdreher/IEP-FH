@@ -7,6 +7,9 @@ export function Footer() {
 
   return (
     <footer className="border-t border-border bg-muted/50 py-6 text-center text-sm text-muted-foreground">
+      <p className="font-medium text-foreground/70 mb-2">
+        🇫🇷 {t.footer.frenchData}
+      </p>
       <p>
         {t.footer.dataFrom}{" "}
         <a
@@ -18,6 +21,18 @@ export function Footer() {
           data.gouv.fr
         </a>
         {" "}— {t.footer.autoUpdated}
+      </p>
+      <p className="mt-1">
+        {t.footer.openSource} —{" "}
+        <a
+          href="https://github.com/mathisdreher/IEP-FH"
+          className="underline hover:text-foreground"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          GitHub
+        </a>
+        {" "}({t.footer.license})
       </p>
     </footer>
   );

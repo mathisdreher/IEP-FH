@@ -68,6 +68,11 @@ export const dictionaries = {
       sectorAvgScore: "Score moyen",
       sectorCount: "Entreprises",
       sectorMedian: "Médiane",
+      sectorMin: "Min",
+      sectorMax: "Max",
+      scoreBreakdown: "Composantes du score",
+      viewProfile: "Voir la fiche",
+      companyTable: "Tableau comparatif",
     },
     secteurs: {
       title: "Secteurs d'activité",
@@ -124,6 +129,10 @@ export const dictionaries = {
     footer: {
       dataFrom: "Données issues de",
       autoUpdated: "Mises à jour automatiquement",
+      frenchData: "Données françaises d'égalité professionnelle F/H",
+      openSource: "Open source",
+      license: "Licence MIT",
+      mapCredit: "Fond de carte",
     },
   },
   en: {
@@ -156,7 +165,7 @@ export const dictionaries = {
     },
     home: {
       title: "Gender Equality Index",
-      subtitle: "Search for a company and explore its gender equality score",
+      subtitle: "Explore the French Gender Equality Index (Index Égalité F/H) for companies with 50+ employees",
       placeholder: "Company name, SIREN...",
       allRegions: "All regions",
       allSizes: "All sizes",
@@ -195,6 +204,11 @@ export const dictionaries = {
       sectorAvgScore: "Average score",
       sectorCount: "Companies",
       sectorMedian: "Median",
+      sectorMin: "Min",
+      sectorMax: "Max",
+      scoreBreakdown: "Score breakdown",
+      viewProfile: "View profile",
+      companyTable: "Comparison table",
     },
     secteurs: {
       title: "Business sectors",
@@ -251,6 +265,10 @@ export const dictionaries = {
     footer: {
       dataFrom: "Data from",
       autoUpdated: "Automatically updated",
+      frenchData: "French workplace gender equality data",
+      openSource: "Open source",
+      license: "MIT License",
+      mapCredit: "Map data",
     },
   },
 } as const;

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
-import { Search, X, Plus, Building2, BarChart3 } from "lucide-react";
+import { Suspense, useState, useCallback, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Search, X, Plus, Building2, BarChart3, ExternalLink } from "lucide-react";
 import { ScoreGauge } from "@/components/score-gauge";
 import { cn, scoreColor } from "@/lib/utils";
 import type { Company, YearRecord, SectorStats } from "@/lib/types";
@@ -32,7 +34,22 @@ interface CompanyWithHistory {
   history: YearRecord[];
 }
 
+const SUB_SCORE_KEYS = [
+  { key: "scoreRemunerations" as const, label: "Rémunération", max: 40 },
+  { key: "scoreAugmentations" as const, label: "Augmentations", max: 35 },
+  { key: "scoreCongesMaternite" as const, label: "Congé maternité", max: 15 },
+  { key: "scoreHautesRemunerations" as const, label: "Hautes rém.", max: 10 },
+];
+
 export default function ComparerPage() {
+  return (
+    <Suspense>
+      <ComparerContent />
+    </Suspense>
+  );
+}
+
+function ComparerContent() {
   const { t } = useLanguage();
   const chartColors = useChartColors();
   const [mode, setMode] = useState<CompareMode>("companies");
@@ -75,13 +92,37 @@ export default function ComparerPage() {
   );
 }
 
-/* ========== Company Compare (existing logic) ========== */
+/* ========== Company Compare ========== */
 
 function CompanyCompare({ t, chartColors }: { t: ReturnType<typeof import("@/components/language-provider").useLanguage>["t"]; chartColors: ReturnType<typeof useChartColors> }) {
+  const searchParams = useSearchParams();
   const [selected, setSelected] = useState<CompanyWithHistory[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Company[]>([]);
   const [searching, setSearching] = useState(false);
+  const [initialLoaded, setInitialLoaded] = useState(false);
+
+  // Pre-load company from URL ?siren=...
+  useEffect(() => {
+    if (initialLoaded) return;
+    const siren = searchParams.get("siren");
+    if (!siren) { setInitialLoaded(true); return; }
+    (async () => {
+      try {
+        const [searchRes, historyRes] = await Promise.all([
+          fetch(`/api/search?q=${siren}&limit=1`),
+          fetch(`/api/company/${siren}/history`),
+        ]);
+        const searchData = await searchRes.json();
+        const history: YearRecord[] = await historyRes.json();
+        const company = searchData.results?.[0];
+        if (company && history.length > 0) {
+          setSelected([{ company, history }]);
+        }
+      } catch {}
+      setInitialLoaded(true);
+    })();
+  }, [searchParams, initialLoaded]);
 
   const searchCompanies = useCallback(async (q: string) => {
     if (q.length < 2) { setSearchResults([]); return; }
@@ -107,6 +148,16 @@ function CompanyCompare({ t, chartColors }: { t: ReturnType<typeof import("@/com
     name: s.company.name.length > 20 ? s.company.name.substring(0, 20) + "…" : s.company.name,
     score: s.company.latestScore, fill: COLORS[i % COLORS.length],
   }));
+
+  // Sub-score breakdown bar data
+  const subScoreBarData = SUB_SCORE_KEYS.map(({ key, label, max }) => {
+    const point: Record<string, string | number | null> = { indicator: label };
+    for (const item of selected) {
+      const latest = item.history.find((h) => h.year === item.company.latestYear);
+      point[item.company.siren] = latest?.[key] ?? null;
+    }
+    return point;
+  });
 
   return (
     <>
@@ -138,7 +189,7 @@ function CompanyCompare({ t, chartColors }: { t: ReturnType<typeof import("@/com
           {selected.map((s, i) => (
             <div key={s.company.siren} className="flex items-center gap-2 rounded-full border px-3 py-1 text-sm" style={{ borderColor: COLORS[i % COLORS.length] }}>
               <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-              <span className="truncate max-w-[150px]">{s.company.name}</span>
+              <Link href={`/entreprise/${s.company.siren}`} className="truncate max-w-[150px] hover:underline">{s.company.name}</Link>
               <button onClick={() => removeCompany(s.company.siren)}><X className="h-3 w-3 text-muted-foreground hover:text-foreground" /></button>
             </div>
           ))}
@@ -146,49 +197,125 @@ function CompanyCompare({ t, chartColors }: { t: ReturnType<typeof import("@/com
       )}
 
       {selected.length >= 2 && (
-        <div className="mt-8 grid gap-8 lg:grid-cols-2">
-          <div className="rounded-lg border border-border p-4">
-            <h3 className="font-semibold mb-4">{t.comparer.overallScore}</h3>
-            <div className="h-64">
+        <>
+          <div className="mt-8 grid gap-8 lg:grid-cols-2">
+            {/* Overall score bar chart */}
+            <div className="rounded-lg border border-border p-4">
+              <h3 className="font-semibold mb-4">{t.comparer.overallScore}</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartColors.grid} />
+                    <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12, fill: chartColors.text }} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: chartColors.text }} width={120} />
+                    <Tooltip formatter={(v) => [`${v}/100`, t.common.score]} contentStyle={chartColors.tooltip} />
+                    <Bar dataKey="score" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Radar chart */}
+            {radarData.length > 0 && (
+              <div className="rounded-lg border border-border p-4">
+                <h3 className="font-semibold mb-4">{t.comparer.detailedIndicators}</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={radarData}>
+                      <PolarGrid stroke={chartColors.grid} />
+                      <PolarAngleAxis dataKey="indicator" tick={{ fontSize: 10, fill: chartColors.text }} />
+                      <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 10, fill: chartColors.text }} />
+                      {selected.map((s, i) => (
+                        <Radar key={s.company.siren} name={s.company.name} dataKey={s.company.siren} stroke={COLORS[i % COLORS.length]} fill={COLORS[i % COLORS.length]} fillOpacity={0.1} strokeWidth={2} />
+                      ))}
+                      <Legend />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sub-score breakdown grouped bar chart */}
+          <div className="mt-8 rounded-lg border border-border p-4">
+            <h3 className="font-semibold mb-4">{t.comparer.scoreBreakdown}</h3>
+            <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} layout="vertical" margin={{ left: 10, right: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartColors.grid} />
-                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12, fill: chartColors.text }} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: chartColors.text }} width={120} />
-                  <Tooltip formatter={(v) => [`${v}/100`, t.common.score]} contentStyle={chartColors.tooltip} />
-                  <Bar dataKey="score" radius={[0, 4, 4, 0]} />
+                <BarChart data={subScoreBarData} margin={{ left: 10, right: 20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+                  <XAxis dataKey="indicator" tick={{ fontSize: 11, fill: chartColors.text }} />
+                  <YAxis tick={{ fontSize: 12, fill: chartColors.text }} />
+                  <Tooltip contentStyle={chartColors.tooltip} />
+                  {selected.map((s, i) => (
+                    <Bar key={s.company.siren} dataKey={s.company.siren} name={s.company.name} fill={COLORS[i % COLORS.length]} radius={[4, 4, 0, 0]} />
+                  ))}
+                  <Legend />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
-          {radarData.length > 0 && (
-            <div className="rounded-lg border border-border p-4">
-              <h3 className="font-semibold mb-4">{t.comparer.detailedIndicators}</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={radarData}>
-                    <PolarGrid stroke={chartColors.grid} />
-                    <PolarAngleAxis dataKey="indicator" tick={{ fontSize: 10, fill: chartColors.text }} />
-                    <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 10, fill: chartColors.text }} />
-                    {selected.map((s, i) => (
-                      <Radar key={s.company.siren} name={s.company.name} dataKey={s.company.siren} stroke={COLORS[i % COLORS.length]} fill={COLORS[i % COLORS.length]} fillOpacity={0.1} strokeWidth={2} />
+
+          {/* Comparison table with sub-scores */}
+          <div className="mt-8 rounded-lg border border-border p-4">
+            <h3 className="font-semibold mb-4">{t.comparer.companyTable}</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold">{t.comparer.companiesMode}</th>
+                    <th className="px-3 py-2 text-right font-semibold">{t.common.score}</th>
+                    {SUB_SCORE_KEYS.map(({ label }) => (
+                      <th key={label} className="px-3 py-2 text-right font-semibold text-xs">{label}</th>
                     ))}
-                    <Legend />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
+                    <th className="px-3 py-2 text-right font-semibold"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selected.map((s, i) => {
+                    const latest = s.history.find((h) => h.year === s.company.latestYear);
+                    return (
+                      <tr key={s.company.siren} className="border-t border-border">
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                            <span className="font-medium truncate max-w-[180px]">{s.company.name}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground ml-[18px]">{s.company.sector}</span>
+                        </td>
+                        <td className={cn("px-3 py-2 text-right font-bold", scoreColor(s.company.latestScore))}>
+                          {s.company.latestScore ?? t.common.NC}
+                        </td>
+                        {SUB_SCORE_KEYS.map(({ key, max }) => {
+                          const val = latest?.[key];
+                          return (
+                            <td key={key} className="px-3 py-2 text-right text-muted-foreground">
+                              {val != null ? <span>{val}<span className="text-xs">/{max}</span></span> : t.common.NC}
+                            </td>
+                          );
+                        })}
+                        <td className="px-3 py-2 text-right">
+                          <Link href={`/entreprise/${s.company.siren}`} className="text-primary hover:underline inline-flex items-center gap-1 text-xs">
+                            <ExternalLink className="h-3 w-3" />
+                            {t.comparer.viewProfile}
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
+          </div>
+        </>
       )}
 
       {selected.length >= 1 && (
         <div className="mt-8 flex flex-wrap justify-center gap-8">
           {selected.map((s, i) => (
-            <div key={s.company.siren} className="text-center">
+            <Link key={s.company.siren} href={`/entreprise/${s.company.siren}`} className="text-center group">
               <ScoreGauge score={s.company.latestScore} size="md" />
-              <p className="mt-2 text-sm font-medium max-w-[120px] truncate" style={{ color: COLORS[i % COLORS.length] }}>{s.company.name}</p>
-            </div>
+              <p className="mt-2 text-sm font-medium max-w-[120px] truncate group-hover:underline" style={{ color: COLORS[i % COLORS.length] }}>{s.company.name}</p>
+            </Link>
           ))}
         </div>
       )}
@@ -203,7 +330,7 @@ function CompanyCompare({ t, chartColors }: { t: ReturnType<typeof import("@/com
   );
 }
 
-/* ========== Sector Compare (new) ========== */
+/* ========== Sector Compare ========== */
 
 function SectorCompare({ t, chartColors }: { t: ReturnType<typeof import("@/components/language-provider").useLanguage>["t"]; chartColors: ReturnType<typeof useChartColors> }) {
   const [allSectors, setAllSectors] = useState<SectorStats[]>([]);
@@ -292,9 +419,9 @@ function SectorCompare({ t, chartColors }: { t: ReturnType<typeof import("@/comp
             </div>
           </div>
 
-          {/* Comparison table */}
+          {/* Comparison table with min/max */}
           <div className="rounded-lg border border-border p-4">
-            <h3 className="font-semibold mb-4">{t.comparer.detailedIndicators}</h3>
+            <h3 className="font-semibold mb-4">{t.comparer.companyTable}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
@@ -303,6 +430,8 @@ function SectorCompare({ t, chartColors }: { t: ReturnType<typeof import("@/comp
                     <th className="px-3 py-2 text-right font-semibold">{t.comparer.sectorCount}</th>
                     <th className="px-3 py-2 text-right font-semibold">{t.common.average}</th>
                     <th className="px-3 py-2 text-right font-semibold">{t.comparer.sectorMedian}</th>
+                    <th className="px-3 py-2 text-right font-semibold">{t.comparer.sectorMin}</th>
+                    <th className="px-3 py-2 text-right font-semibold">{t.comparer.sectorMax}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -318,6 +447,8 @@ function SectorCompare({ t, chartColors }: { t: ReturnType<typeof import("@/comp
                       <td className="px-3 py-2 text-right text-muted-foreground">{s.count.toLocaleString("fr-FR")}</td>
                       <td className={cn("px-3 py-2 text-right font-bold", scoreColor(s.avgScore))}>{s.avgScore}</td>
                       <td className={cn("px-3 py-2 text-right", scoreColor(s.median))}>{s.median}</td>
+                      <td className={cn("px-3 py-2 text-right", scoreColor(s.min))}>{s.min}</td>
+                      <td className={cn("px-3 py-2 text-right", scoreColor(s.max))}>{s.max}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -352,14 +483,7 @@ function SectorCompare({ t, chartColors }: { t: ReturnType<typeof import("@/comp
 /* ========== Helpers ========== */
 
 function buildRadarData(items: CompanyWithHistory[]) {
-  const indicators = [
-    { key: "scoreRemunerations" as const, label: "Rémunération", max: 40 },
-    { key: "scoreAugmentations" as const, label: "Augmentations", max: 35 },
-    { key: "scoreCongesMaternite" as const, label: "Congé maternité", max: 15 },
-    { key: "scoreHautesRemunerations" as const, label: "Hautes rém.", max: 10 },
-  ];
-
-  return indicators.map(({ key, label, max }) => {
+  return SUB_SCORE_KEYS.map(({ key, label, max }) => {
     const point: Record<string, string | number | null> = { indicator: label };
     for (const item of items) {
       const latest = item.history.find((h) => h.year === item.company.latestYear);

@@ -136,7 +136,7 @@ export default async function CompanyPage({ params }: Props) {
       </section>
 
       {/* Score history */}
-      {history.length > 1 && (
+      {history.length >= 1 && (
         <section className="mt-8">
           <h2 className="text-lg font-semibold mb-4">{t.company.scoreHistory}</h2>
           <ScoreHistory history={history} />

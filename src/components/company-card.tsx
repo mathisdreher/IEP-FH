@@ -20,7 +20,7 @@ export function CompanyCard({ company }: CompanyCardProps) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-sm truncate">{company.name}</h3>
+          <h3 className="font-semibold text-sm truncate text-foreground">{company.name}</h3>
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <Building2 className="h-3 w-3" />

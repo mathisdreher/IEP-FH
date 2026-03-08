@@ -20,7 +20,7 @@ export const dictionaries = {
       data: "Données",
     },
     nav: {
-      brand: "Égalité Pro",
+      brand: "Index Égalité F/H",
       search: "Recherche",
       dashboard: "Tableau de bord",
       compare: "Comparer",
@@ -94,6 +94,10 @@ export const dictionaries = {
       avgByRegion: "Score moyen par région",
       region: "Région",
       vsNational: "vs Nationale",
+      mapTitle: "Carte interactive",
+      clickToExplore: "Cliquer pour explorer",
+      companies: "entreprises",
+      overseas: "Outre-mer",
     },
     dashboard: {
       title: "Tableau de bord",
@@ -143,7 +147,7 @@ export const dictionaries = {
       data: "Data",
     },
     nav: {
-      brand: "Equality Index",
+      brand: "Gender Equality Index",
       search: "Search",
       dashboard: "Dashboard",
       compare: "Compare",
@@ -217,6 +221,10 @@ export const dictionaries = {
       avgByRegion: "Average score by region",
       region: "Region",
       vsNational: "vs National",
+      mapTitle: "Interactive map",
+      clickToExplore: "Click to explore",
+      companies: "companies",
+      overseas: "Overseas",
     },
     dashboard: {
       title: "Dashboard",

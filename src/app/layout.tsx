@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageProvider } from "@/components/language-provider";
 import { Footer } from "@/components/footer";
 import { BottomTabBar } from "@/components/bottom-tab-bar";
+import { getMeta } from "@/lib/data";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,11 +29,20 @@ export const metadata: Metadata = {
 
 const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme:dark)').matches);if(d)document.documentElement.classList.add('dark')}catch(e){}})()`;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let lastUpdated: string | undefined;
+  try {
+    const meta = await getMeta();
+    lastUpdated = meta.fetchedAt;
+  } catch (err) {
+    // meta.json may not exist in dev without running the data pipeline
+    console.warn("[layout] Could not load meta.json:", err);
+  }
+
   return (
     <html lang="fr" suppressHydrationWarning>
       <head>
@@ -45,7 +55,7 @@ export default function RootLayout({
           <LanguageProvider>
             <Navigation />
             <main className="min-h-[calc(100vh-4rem)] pb-16 md:pb-0">{children}</main>
-            <Footer />
+            <Footer lastUpdated={lastUpdated} />
             <BottomTabBar />
           </LanguageProvider>
         </ThemeProvider>

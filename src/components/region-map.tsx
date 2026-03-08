@@ -78,7 +78,7 @@ export function RegionMap({ regions, nationalAvg }: RegionMapProps) {
                 const score = stats?.avgScore ?? 0;
                 const isHovered = hovered === name;
                 return (
-                  <Link key={name} href={`/?region=${encodeURIComponent(name)}`}>
+                  <Link key={name} href={`/tableau-de-bord?region=${encodeURIComponent(name)}`}>
                     <g
                       onMouseEnter={(e) => {
                         setHovered(name);
@@ -170,7 +170,7 @@ export function RegionMap({ regions, nationalAvg }: RegionMapProps) {
                   return (
                     <Link
                       key={name}
-                      href={`/?region=${encodeURIComponent(name)}`}
+                      href={`/tableau-de-bord?region=${encodeURIComponent(name)}`}
                       className={cn(
                         "rounded-lg border p-2 text-center transition-all hover:shadow-md",
                         isHov ? "ring-2 ring-primary" : "border-border"
@@ -249,7 +249,7 @@ export function RegionMap({ regions, nationalAvg }: RegionMapProps) {
                 <tr key={r.name} className="border-t border-border hover:bg-muted/30">
                   <td className="px-4 py-2 font-medium">
                     <Link
-                      href={`/?region=${encodeURIComponent(r.name)}`}
+                      href={`/tableau-de-bord?region=${encodeURIComponent(r.name)}`}
                       className="hover:text-primary hover:underline transition-colors"
                     >
                       {r.name}

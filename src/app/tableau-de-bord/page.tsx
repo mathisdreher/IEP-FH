@@ -1,9 +1,11 @@
-import { getNationalStats, getRegionStats, getSectorStats } from "@/lib/data";
+import { getNationalStats, getRegionStats, getSectorStats, getFilteredDashboardStats } from "@/lib/data";
 import { cookies } from "next/headers";
 import { getDictionary, type Locale } from "@/lib/i18n";
 import type { Metadata } from "next";
 import { DashboardCharts } from "@/components/dashboard-charts";
+import { DashboardFilters } from "@/components/dashboard-filters";
 import { TrendingUp, TrendingDown, Building2, BarChart3, Award } from "lucide-react";
+import type { NationalStats } from "@/lib/types";
 
 export const revalidate = 86400;
 
@@ -12,40 +14,78 @@ export const metadata: Metadata = {
   description: "Vue d'ensemble nationale de l'Index d'Égalité Professionnelle F/H.",
 };
 
-export default async function DashboardPage() {
-  const [national, regions, sectors] = await Promise.all([
-    getNationalStats(),
-    getRegionStats(),
-    getSectorStats(),
-  ]);
+interface Props {
+  searchParams: Promise<{ region?: string; size?: string }>;
+}
+
+export default async function DashboardPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const activeRegion = typeof params.region === "string" ? params.region : "";
+  const activeSize = typeof params.size === "string" ? params.size : "";
+  const hasFilters = !!(activeRegion || activeSize);
 
   const cookieStore = await cookies();
   const locale = (cookieStore.get("locale")?.value || "fr") as Locale;
   const t = getDictionary(locale);
 
-  const topSectors = sectors
-    .filter((s) => s.count >= 20)
-    .sort((a, b) => b.avgScore - a.avgScore)
-    .slice(0, 5);
-  const bottomSectors = sectors
-    .filter((s) => s.count >= 20)
-    .sort((a, b) => a.avgScore - b.avgScore)
-    .slice(0, 5);
+  // Region list for filter dropdown
+  const regions = await getRegionStats();
+  const regionNames = regions.map((r) => r.name).sort();
+
+  // Dashboard data
+  let national: NationalStats;
+  let topSectors: { code: string; label: string; count: number; avgScore: number }[];
+  let bottomSectors: { code: string; label: string; count: number; avgScore: number }[];
+
+  if (hasFilters) {
+    const data = await getFilteredDashboardStats({
+      region: activeRegion || undefined,
+      size: activeSize || undefined,
+    });
+    national = data.stats;
+    topSectors = data.topSectors;
+    bottomSectors = data.bottomSectors;
+  } else {
+    const [natStats, sectors] = await Promise.all([
+      getNationalStats(),
+      getSectorStats(),
+    ]);
+    national = natStats;
+    const eligible = sectors.filter((s) => s.count >= 20);
+    topSectors = [...eligible].sort((a, b) => b.avgScore - a.avgScore).slice(0, 5);
+    bottomSectors = [...eligible].sort((a, b) => a.avgScore - b.avgScore).slice(0, 5);
+  }
 
   // Year-over-year delta
   const years = Object.keys(national.avgByYear).map(Number).sort();
   const currentYear = years[years.length - 1];
   const prevYear = years.length > 1 ? years[years.length - 2] : null;
-  const currentAvg = national.avgByYear[currentYear];
-  const prevAvg = prevYear ? national.avgByYear[prevYear] : null;
-  const delta = prevAvg != null ? Math.round((currentAvg - prevAvg) * 10) / 10 : null;
+  const currentAvg = currentYear != null ? national.avgByYear[currentYear] : null;
+  const prevAvg = prevYear != null ? national.avgByYear[prevYear] : null;
+  const delta =
+    prevAvg != null && currentAvg != null
+      ? Math.round((currentAvg - prevAvg) * 10) / 10
+      : null;
+
+  // Dynamic subtitle
+  const filterParts: string[] = [];
+  if (activeRegion) filterParts.push(activeRegion);
+  if (activeSize) filterParts.push(`${activeSize} ${t.common.employees}`);
+  const subtitle = hasFilters ? filterParts.join(" · ") : t.dashboard.subtitle;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-2xl font-bold sm:text-3xl">{t.dashboard.title}</h1>
       <p className="mt-1 text-muted-foreground">
-        {t.dashboard.subtitle} — {t.common.data} {national.year}
+        {subtitle} — {t.common.data} {national.year}
       </p>
+
+      {/* Filters */}
+      <DashboardFilters
+        regions={regionNames}
+        currentRegion={activeRegion}
+        currentSize={activeSize}
+      />
 
       {/* KPI cards */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

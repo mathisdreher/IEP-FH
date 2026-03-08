@@ -2,8 +2,20 @@
 
 import { useLanguage } from "./language-provider";
 
-export function Footer() {
-  const { t } = useLanguage();
+interface FooterProps {
+  lastUpdated?: string;
+}
+
+export function Footer({ lastUpdated }: FooterProps) {
+  const { locale, t } = useLanguage();
+
+  const formattedDate = lastUpdated
+    ? new Date(lastUpdated).toLocaleDateString(locale === "en" ? "en-GB" : "fr-FR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
 
   return (
     <footer className="border-t border-border bg-muted/50 py-6 text-center text-sm text-muted-foreground">
@@ -20,7 +32,10 @@ export function Footer() {
         >
           data.gouv.fr
         </a>
-        {" "}— {t.footer.autoUpdated}
+        {" "}—{" "}
+        {formattedDate
+          ? `${t.footer.updatedOn} ${formattedDate}`
+          : t.footer.autoUpdated}
       </p>
       <p className="mt-1">
         {t.footer.openSource} —{" "}

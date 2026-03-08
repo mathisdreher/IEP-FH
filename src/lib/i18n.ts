@@ -129,6 +129,7 @@ export const dictionaries = {
     footer: {
       dataFrom: "Données issues de",
       autoUpdated: "Mises à jour automatiquement",
+      updatedOn: "Mise à jour le",
       frenchData: "Données françaises d'égalité professionnelle F/H",
       openSource: "Open source",
       license: "Licence MIT",
@@ -265,6 +266,7 @@ export const dictionaries = {
     footer: {
       dataFrom: "Data from",
       autoUpdated: "Automatically updated",
+      updatedOn: "Updated on",
       frenchData: "French workplace gender equality data",
       openSource: "Open source",
       license: "MIT License",

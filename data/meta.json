@@ -1,0 +1,19 @@
+{
+  "lastModified": "2025-04-25T15:26:12.373000+00:00",
+  "fetchedAt": "2026-03-08T12:27:22.512Z",
+  "datasetId": "61a73dcfe3171089843587bf",
+  "sourceUrl": "https://egapro.travail.gouv.fr/index-egalite-fh.xlsx",
+  "totalRows": 211069,
+  "totalCompanies": 40895,
+  "years": [
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "latestYear": 2025
+}
